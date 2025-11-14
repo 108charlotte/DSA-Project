@@ -53,8 +53,11 @@ class HashTable:
         if self.table[index] is None: 
             self.table[index] = Node(hashed, value)
             self.size += 1
+        # if collision
         else:
+            self.num_collisions += 1
             current = self.table[index]
+            # need to add min and max collisions
             while current:
                 if current.key == key:
                     current.value = value
@@ -85,8 +88,11 @@ class HashTable:
         for i in range(len(text)): 
             if text[i] == ' ': 
                 self._insert(num, word, word)
-            if text[i].isalpha(): 
+                word = ""
+            elif text[i].isalpha(): 
                 word += text[i]
+            if i == len(text) - 1: 
+                self._insert(num, word, word)
     
     def __str__(self):
         elements = []
@@ -99,5 +105,7 @@ class HashTable:
 
 
 hash_table = HashTable(50)
-hash_table.populate(1, "hi hi nope")
+hash_table.populate(1, "hi hi nope why isn't the nope getting added")
 print(hash_table)
+print("Collisions: " + str(hash_table.num_collisions))
+print("Entries: " + str(hash_table.entries))
