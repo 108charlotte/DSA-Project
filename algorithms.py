@@ -2,6 +2,35 @@ import numpy as np
 import pandas as pd
 import neurokit2 as nk
 
+# Cache the processed heart-rate series so we don't recompute it on every hash call
+_HR_CACHE = None
+
+def _get_hr_series():
+    global _HR_CACHE
+    if _HR_CACHE is not None:
+        return _HR_CACHE
+
+    # Load raw PPG/HR data and compute HR series once
+    raw = pd.read_csv('hr_data.csv')
+    time_series = raw.iloc[:, 0].to_numpy()
+    ppg_values = raw.iloc[:, 1].to_numpy()
+    # estimate sampling frequency from timestamps (assumes ms timestamps)
+    diffs = time_series[1:] - time_series[:-1]
+    if len(diffs) == 0:
+        raise ValueError('hr_data.csv has insufficient rows')
+    fs = int(np.round(np.median(diffs)))
+    # neurokit expects sampling_rate in Hz; if timestamps are ms convert to Hz
+    # if fs looks like milliseconds-per-sample, convert to samples-per-second
+    if fs > 1000:  # heuristic: timestamps likely in ms
+        sampling_rate = int(round(1000.0 / fs))
+    else:
+        sampling_rate = int(fs) if fs > 0 else 1
+
+    signals, info = nk.ppg_process(ppg_values, sampling_rate=sampling_rate)
+    HR = signals['PPG_Rate'].reset_index(drop=True)
+    _HR_CACHE = HR
+    return _HR_CACHE
+
 def to_index(hashed_val, len): 
     return hashed_val % len
 
@@ -21,42 +50,28 @@ def hash_1(input):
     return sum
 
 def hash_2(input): 
-    data = pd.read_csv('hr_data.csv')
+    # Use the cached HR series (computed once). Convert the input string
+    # to an integer index safely and use modulo to stay within bounds.
+    HR = _get_hr_series()
 
-    time_series = data.iloc[:, 0].to_numpy()
-    ppg_values = data.iloc[:, 1].to_numpy()
+    s = str(input)
+    if len(s) == 0:
+        idx = 0
+    else:
+        midpoint = len(s) // 2
+        minutes = sum(ord(c) for c in s[:midpoint])
+        seconds = sum(ord(c) for c in s[midpoint:])
+        total_secs = minutes * 60 + seconds
+        # Map the potentially large number into the HR series range
+        idx = int(total_secs % len(HR))
 
-    fs = int(np.round(np.median(time_series[1:] - time_series[:-1])))
-
-    start_ms = data.iloc[0, 0]
-    end_ms   = data.iloc[-1, 0]
-    start_s = int(start_ms / 1000)
-    end_s   = int(end_ms / 1000)
-    proc_start = 0
-    proc_end = end_s - start_s
-
-    signals, info = nk.ppg_process(ppg_values[proc_start*fs:proc_end*fs], sampling_rate=fs)
-
-    signals, info = nk.ppg_process(ppg_values, sampling_rate=fs)
-    HR = signals['PPG_Rate']
-    HR.to_csv('HeartRate.csv')
-
-    data = pd.read_csv('/content/HeartRate.csv')
-    string = input
-    total_secs = []
-    minutes = 0
-    seconds = 0
-    string_length = len(string)
-    midpoint = string_length // 2
-    minutes_str = string[:midpoint]
-    seconds_str = string[midpoint:]
-    for char in minutes_str:
-        minutes += ord(char)
-    for char in seconds_str:
-        seconds += ord(char)
-    total_secs.append(minutes*60 + seconds)
-    key1 = data.iloc[string, 1]
-    key2 = int((key1*10000))
+    key1 = HR.iloc[idx]
+    # Ensure numeric and convert to integer hashable value
+    try:
+        key2 = int(float(key1) * 10000)
+    except Exception:
+        # fallback: use idx if HR value cannot be converted
+        key2 = int(idx)
     return key2
 
 def hash_3(input): 
@@ -184,7 +199,7 @@ with open(file_path, 'r') as file:
 
 words = 100000
 
-hash_table.populate(1, file_content, words)
+hash_table.populate(2, file_content, words)
 print(hash_table)
 print("Duplicates: " + str(hash_table.duplicates))
 print("Collisions: " + str(hash_table.num_collisions))
