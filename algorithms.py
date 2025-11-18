@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import neurokit2 as nk
+import sys
 
 # Cache the processed heart-rate series so we don't recompute it on every hash call
 _HR_CACHE = None
@@ -50,6 +51,17 @@ def hash_1(input):
     return sum
 
 def hash_2(input): 
+    sum = 0
+    for letter in input: 
+        num = ord(letter)
+        sum += num
+    sum *= 10**30
+    sum %= 1_999_999_999
+    sum -= 999_999_937
+    return sum
+
+
+def hash_3(input): 
     # Use the cached HR series (computed once). Convert the input string
     # to an integer index safely and use modulo to stay within bounds.
     HR = _get_hr_series()
@@ -73,9 +85,6 @@ def hash_2(input):
         # fallback: use idx if HR value cannot be converted
         key2 = int(idx)
     return key2
-
-def hash_3(input): 
-    return 0
 
 def hash_4(input): 
     return 0
@@ -197,9 +206,31 @@ file_path = 'generated_words.txt'
 with open(file_path, 'r') as file:
     file_content = file.read()
 
-words = 100000
+# Defaults
+hash_num = 1       # which hash function to use (1..4)
+words = 100000     # number of words to insert
 
-hash_table.populate(2, file_content, words)
+# Command-line positional handling:
+# - `python3 algorithms.py 2` -> use hash function 2
+# - `python3 algorithms.py 2 210` -> use hash 2 and insert 210 words
+# - `python3 algorithms.py 210` -> if first arg not in 1..4, treat as words count
+if len(sys.argv) >= 2:
+    try:
+        first = int(sys.argv[1])
+        if 1 <= first <= 4:
+            hash_num = first
+            if len(sys.argv) >= 3:
+                try:
+                    words = int(sys.argv[2])
+                except ValueError:
+                    print(f"Warning: second positional argument '{sys.argv[2]}' is not an integer; using default words={words}")
+        else:
+            # treat first positional argument as words count
+            words = first
+    except ValueError:
+        print(f"Warning: positional argument '{sys.argv[1]}' is not an integer; using defaults hash={hash_num}, words={words}")
+
+hash_table.populate(hash_num, file_content, words)
 print(hash_table)
 print("Duplicates: " + str(hash_table.duplicates))
 print("Collisions: " + str(hash_table.num_collisions))
