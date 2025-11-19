@@ -95,6 +95,7 @@ def hash_3(input):
         key2 = int(idx)
     return key2
 
+# used copilot to generate, came up with idea ourselves
 def hash_4(input): 
     # Use `wordfreq` zipf frequencies as a free, local proxy for word popularity.
     # This avoids external APIs and quotas. Install with: `pip install wordfreq`.
@@ -109,16 +110,12 @@ def hash_4(input):
     if query in hash_4._cache:
         return hash_4._cache[query]
 
-    try:
-        from wordfreq import zipf_frequency
-    except Exception:
-        raise RuntimeError("hash_4 requires the 'wordfreq' package")
-
     # lowercase for normalization; wordfreq expects language code 'en'
     z = zipf_frequency(query.lower(), 'en')
     # zipf_frequency returns a float that may be negative for very rare words.
     score = max(0, int(z * 100))
     hash_4._cache[query] = score
+    # returns numerical value corresponding to the frequency of a word in the english language
     return score
 
 # inspired by https://www.geeksforgeeks.org/dsa/implementation-of-hash-table-in-python-using-separate-chaining/
@@ -233,6 +230,8 @@ class HashTable:
                 current = current.next
             lines.append(f"{i:5} | {cnt}")
         return "\n".join(lines)
+
+
 file_path = 'generated_words.txt'
 
 with open(file_path, 'r') as file:
@@ -243,7 +242,8 @@ import re
 all_words = re.findall(r"[A-Za-z]+", file_content)
 
 
-# used copilot to make this take conditional arguments
+# used copilot to make mass hash table insertion able to run from terminal and export data to csv, can either run with generate_csv to get stats for table values in an array or compare to get the count per slot of every function
+
 # Defaults
 hash_num = 1       # which hash function to use (1..4)
 words = 100000     # number of words to insert
@@ -311,7 +311,6 @@ def generate_csv(hash_num, chunk, out_path='hash_results.csv'):
 
     return out_path
 
-# copilot-generated function to easily export data for the csv
 def compare_hashes(table_size, chunk, out_path='compare_hashes.csv'):
     """Run the 'run' experiment for each hash function (1..4) at a single
     `table_size` and write a CSV where each row is a hash number and each
@@ -341,7 +340,6 @@ def compare_hashes(table_size, chunk, out_path='compare_hashes.csv'):
 
     return out_path
 
-# copilot generated to streamline data collection process
 def main():
     # Quick mode: if called as `python algorithms.py <hash> <chunk> [table_size]`
     # run both the single run (printing table/stats and writing table CSV)
