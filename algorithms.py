@@ -9,6 +9,7 @@ import requests
 from urllib.parse import quote_plus
 import statistics
 import csv
+import math
 
 # Cache the processed heart-rate series so we don't recompute it on every hash call
 _HR_CACHE = None
@@ -310,8 +311,85 @@ def generate_csv(hash_num, chunk, out_path='hash_results.csv'):
 
     return out_path
 
+# copilot-generated function to easily export data for the csv
+def compare_hashes(table_size, chunk, out_path='compare_hashes.csv'):
+    """Run the 'run' experiment for each hash function (1..4) at a single
+    `table_size` and write a CSV where each row is a hash number and each
+    column is an index in the table containing the count for that index.
+    """
+    words_slice = _get_words_for_chunk(chunk)
+    if len(words_slice) == 0:
+        raise ValueError('Selected chunk has no words')
 
+    # collect counts per hash function
+    results = {}
+    for h in range(1, 5):
+        ht = HashTable(table_size)
+        for w in words_slice:
+            ht.insert(h, w)
+        # ensure a plain list copy
+        results[h] = list(ht.counts)
+
+    # write CSV: header = ['hash function/slot #', '0', '1', ...]
+    header = ['hash'] + [str(i) for i in range(table_size)]
+    with open(out_path, 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(header)
+        for h in range(1, 5):
+            row = [h] + results[h]
+            writer.writerow(row)
+
+    return out_path
+
+# copilot generated to streamline data collection process
 def main():
+    # Quick mode: if called as `python algorithms.py <hash> <chunk> [table_size]`
+    # run both the single run (printing table/stats and writing table CSV)
+    # and generate the CSV over TABLE_SIZES. This keeps the interface terse.
+    if len(sys.argv) >= 3:
+        try:
+            maybe_hash = int(sys.argv[1])
+            maybe_chunk = int(sys.argv[2])
+            if 1 <= maybe_hash <= 4 and maybe_chunk in (1, 2):
+                # optional table size as third arg
+                table_size = None
+                if len(sys.argv) >= 4:
+                    try:
+                        table_size = int(sys.argv[3])
+                    except Exception:
+                        table_size = None
+
+                # run single table-size experiment
+                words_slice = _get_words_for_chunk(maybe_chunk)
+                tsz = table_size if table_size is not None else TABLE_SIZES[0]
+                ht = HashTable(tsz)
+                for w in words_slice:
+                    ht.insert(maybe_hash, w)
+                stats = ht.stats()
+                try:
+                    sd = statistics.stdev(ht.counts) if len(ht.counts) > 1 else 0
+                except Exception:
+                    sd = 0
+                stats['stddev'] = sd
+                print(ht)
+                print('Run stats:', stats)
+                # write the table CSV
+                out_table_csv = f'table_hash{maybe_hash}_chunk{maybe_chunk}_size{ht.capacity}.csv'
+                with open(out_table_csv, 'w', newline='') as csvfile:
+                    writer = csv.writer(csvfile)
+                    writer.writerow(['Index', 'Count'])
+                    for i, c in enumerate(ht.counts):
+                        writer.writerow([i, c])
+                print(f'Wrote table CSV to: {out_table_csv}')
+
+                # generate CSV over TABLE_SIZES
+                out = generate_csv(maybe_hash, maybe_chunk, out_path=f'hash_results_hash{maybe_hash}_chunk{maybe_chunk}.csv')
+                print(f'Wrote CSV to: {out}')
+                return
+        except ValueError:
+            # not quick-mode, fall through to normal arg parsing
+            pass
+
     parser = argparse.ArgumentParser(description='Hash table experiment runner')
     subparsers = parser.add_subparsers(dest='command')
 
@@ -326,6 +404,12 @@ def main():
     run.add_argument('hash', type=int, choices=[1, 2, 3, 4])
     run.add_argument('chunk', type=int, choices=[1, 2])
     run.add_argument('--table_size', type=int, default=TABLE_SIZES[0])
+
+    # compare subcommand: run all hashes at a single table size and emit per-index CSV
+    comp = subparsers.add_parser('compare', help='Compare all hash functions at one table size')
+    comp.add_argument('table_size', type=int, help='Table size to test')
+    comp.add_argument('chunk', type=int, choices=[1, 2], help='Chunk to use: 1 for words 1-5000, 2 for words 5001-10000')
+    comp.add_argument('--out', type=str, default='compare_hashes.csv', help='Output CSV path')
 
     args = parser.parse_args()
 
@@ -345,6 +429,18 @@ def main():
         stats['stddev'] = sd
         print(ht)
         print('Run stats:', stats)
+        # written by copilot to export existing data to csv
+        # write the table (Index, Count) to CSV
+        out_table_csv = f'table_hash{args.hash}_chunk{args.chunk}_size{args.table_size}.csv'
+        with open(out_table_csv, 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(['Index', 'Count'])
+            for i, c in enumerate(ht.counts):
+                writer.writerow([i, c])
+        print(f'Wrote table CSV to: {out_table_csv}')
+    elif args.command == 'compare':
+        out = compare_hashes(args.table_size, args.chunk, out_path=args.out)
+        print(f'Wrote compare CSV to: {out}')
     else:
         parser.print_help()
 
