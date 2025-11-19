@@ -52,8 +52,12 @@ def hash_1(input):
             num += 1
         letters.append(letter)
         sum += num
-    return sum
-
+        sum = int(sum*math.pi) 
+        sum *= 997
+    # credit to chatgpt for the following line
+    #sets min to zero, mods the number to be within integer range, then shifts over to -2B to 2B 
+    return (sum - (-2_147_483_648)) % 4_294_967_296 + -2_147_483_648
+    
 def hash_2(input): 
     sum = 0
     for letter in input: 
