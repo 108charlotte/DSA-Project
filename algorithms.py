@@ -57,14 +57,14 @@ def hash_1(input):
         sum *= 997
     # credit to chatgpt for the following line
     #sets min to zero, mods the number to be within integer range, then shifts over to -2B to 2B 
-    return (sum - (-2_147_483_648)) % 4_294_967_296 + -2_147_483_648
+    return (sum - (-2_147_483_647)) % 4_294_967_296 + -2_147_483_648
     
 def hash_2(input): 
     sum = 0
     for letter in input: 
         num = ord(letter)
         sum += num
-    sum *= 10**30
+    sum *= 10**30 - 6
     sum %= 1_999_999_999
     sum -= 999_999_937
     return sum
