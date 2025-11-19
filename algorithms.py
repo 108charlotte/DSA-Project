@@ -215,6 +215,19 @@ class HashTable:
             'max_hashed_in_slot': self.max_hashed_in_slot,
             'min_hashed_in_slot': self.min_hashed_in_slot,
         }
+    
+    def __str__(self):
+        lines = []
+        lines.append("Index | Count")
+        lines.append("----- | -----")
+        for i in range(self.capacity):
+            cnt = 0
+            current = self.table[i]
+            while current:
+                cnt += 1
+                current = current.next
+            lines.append(f"{i:5} | {cnt}")
+        return "\n".join(lines)
 file_path = 'generated_words.txt'
 
 with open(file_path, 'r') as file:
@@ -326,6 +339,7 @@ def main():
         except Exception:
             sd = 0
         stats['stddev'] = sd
+        print(ht)
         print('Run stats:', stats)
     else:
         parser.print_help()
