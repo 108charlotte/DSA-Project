@@ -3,9 +3,6 @@ import pandas as pd
 import neurokit2 as nk
 import sys
 import argparse
-import os
-import time
-import requests
 from urllib.parse import quote_plus
 import statistics
 import csv
